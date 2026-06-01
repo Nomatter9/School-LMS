@@ -71,4 +71,10 @@ const seedStaff = async () => {
   }
 };
 
+if (require.main === module) {
+  seedStaff()
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
+}
+
 module.exports = seedStaff;

@@ -1,18 +1,42 @@
 const db = require('../models');
 
-const seedGrades = async (schoolId) => {
-  const grades = [
-    { name: 'Grade 1', level: 1, schoolId },
-    { name: 'Grade 2', level: 2, schoolId },
-    { name: 'Grade 3', level: 3, schoolId },
-    { name: 'Grade 4', level: 4, schoolId },
-    { name: 'Grade 5', level: 5, schoolId },
-    { name: 'Grade 6', level: 6, schoolId },
-    { name: 'Grade 7', level: 7, schoolId },
-  ];
+const GRADES = [
+  { level: 1, label: 'Grade 1' },
+  { level: 2, label: 'Grade 2' },
+  { level: 3, label: 'Grade 3' },
+  { level: 4, label: 'Grade 4' },
+  { level: 5, label: 'Grade 5' },
+  { level: 6, label: 'Grade 6' },
+  { level: 7, label: 'Grade 7' },
+];
 
-  await db.Grade.bulkCreate(grades, { ignoreDuplicates: true });
-  console.log(`✅ Grades seeded for school ${schoolId}`);
+const seedGrades = async (schoolId) => {
+  if (!schoolId) {
+    await db.sequelize.authenticate();
+    const school = await db.School.findOne();
+    if (!school) {
+      console.error('❌ No school found. Register a school via the app first.');
+      process.exit(1);
+    }
+    schoolId = school.id;
+  }
+
+  let created = 0;
+  for (const grade of GRADES) {
+    const [, wasCreated] = await db.Grade.findOrCreate({
+      where: { schoolId, level: grade.level },
+      defaults: { schoolId, level: grade.level, label: grade.label },
+    });
+    if (wasCreated) created++;
+  }
+  console.log(`✅ Grades seeded (${created} created, ${GRADES.length - created} skipped)`);
 };
 
+if (require.main === module) {
+  seedGrades()
+    .then(() => process.exit(0))
+    .catch((err) => { console.error('❌ Grade seeder failed:', err); process.exit(1); });
+}
+
 module.exports = seedGrades;
+

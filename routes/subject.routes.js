@@ -1,14 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth.middleware'); 
+const { authenticate } = require('../middleware/auth.middleware');
 const subjectController = require('../controllers/subject.controller');
-const { validateCreateSubject ,validateUpdateSubject } = require('../validators/subject.validator');
 
-router.use(authenticate);
+const adminOnly = (req, res, next) => {
+  if (!['headmaster', 'admin'].includes(req.user?.role)) {
+    return res.status(403).json({ message: 'Access denied' });
+  }
+  next();
+};
 
-router.get('/', subjectController.getAll);
-router.post('/',validateCreateSubject, subjectController.create);
-router.put('/:id',validateUpdateSubject, subjectController.update);
-router.delete('/:id', subjectController.remove);
+// ✅ GET open to all
+router.get('/',      authenticate, subjectController.getAll);
+router.post('/',     authenticate, adminOnly, subjectController.create);
+router.put('/:id',   authenticate, adminOnly, subjectController.update);
+router.delete('/:id',authenticate, adminOnly, subjectController.deleteSubject);
 
 module.exports = router;

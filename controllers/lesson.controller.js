@@ -18,7 +18,9 @@ exports.getAll = async (req, res) => {
           where: { teacherId: req.user.id },
           include: [
             { model: db.Subject, as: 'subject' },
-            { model: db.Class, as: 'class' },
+            { model: db.Class, as: 'class' ,
+               include: [{ model: db.Grade, as: 'grade' }]
+            },
           ],
         },
         { model: db.Term, as: 'term' },
@@ -54,39 +56,43 @@ exports.getOne = async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch lesson' });
   }
 };
-
+// backend/controllers/lesson.controller.js
 exports.create = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(422).json({ message: 'Validation failed', errors: errors.array() });
-
     const { classSubjectId, termId, title, content, videoUrl, weekNumber, isPublished } = req.body;
+    
+    // If a file was uploaded via Multer
+    const fileUrl = req.file ? `/uploads/lessons/${req.file.filename}` : null;
 
-    const cs = await db.ClassSubject.findOne({ where: { id: classSubjectId, teacherId: req.user.id } });
-    if (!cs) return res.status(403).json({ message: 'Not authorized for this subject' });
-
-    const lesson = await db.Lesson.create({
+    const newLesson = await db.Lesson.create({
       classSubjectId,
       termId,
       title,
-      content: content || null,
-      videoUrl: videoUrl || null,
-      fileUrl: req.file ? `/uploads/files/${req.file.filename}` : null,
-      weekNumber: weekNumber ? parseInt(weekNumber) : null,
-      isPublished: isPublished === 'true' || isPublished === true || false,
+      content,
+      videoUrl,
+      fileUrl,
+      weekNumber: weekNumber || null,
+      isPublished: isPublished === 'true', // FormData sends strings
     });
 
-    const created = await db.Lesson.findByPk(lesson.id, {
+    // Fetch the full relations so the frontend table updates immediately
+    const completeLesson = await db.Lesson.findByPk(newLesson.id, {
       include: [
-        { model: db.ClassSubject, as: 'classSubject', include: [{ model: db.Subject, as: 'subject' }, { model: db.Class, as: 'class' }] },
-        { model: db.Term, as: 'term' },
-      ],
+        { 
+          model: db.ClassSubject, 
+          as: 'classSubject',
+          include: [
+            { model: db.Subject, as: 'subject' },
+            { model: db.Class, as: 'class', include: [{ model: db.Grade, as: 'grade' }] }
+          ]
+        },
+        { model: db.Term, as: 'term' }
+      ]
     });
 
-    res.status(201).json(created);
-  } catch (err) {
-    console.error('Create lesson error:', err);
-    res.status(500).json({ message: 'Failed to create lesson' });
+    res.status(201).json(completeLesson);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -130,6 +136,31 @@ exports.update = async (req, res) => {
   } catch (err) {
     console.error('Update lesson error:', err);
     res.status(500).json({ message: 'Failed to update lesson' });
+  }
+};
+
+exports.getLessonProgress = async (req, res) => {
+  try {
+    const lesson = await db.Lesson.findOne({
+      where: { id: req.params.id },
+      include: [{ model: db.ClassSubject, as: 'classSubject', where: { teacherId: req.user.id } }],
+    });
+    if (!lesson) return res.status(404).json({ message: 'Lesson not found' });
+
+    const progress = await db.LessonProgress.findAll({
+      where: { lessonId: lesson.id },
+      include: [
+        {
+          model: db.Student, as: 'pupil',
+          include: [{ model: db.User, as: 'user', attributes: ['id', 'firstName', 'lastName'] }],
+        },
+      ],
+      order: [['updatedAt', 'DESC']],
+    });
+    res.json(progress);
+  } catch (err) {
+    console.error('Get lesson progress error:', err);
+    res.status(500).json({ message: 'Failed to fetch lesson progress' });
   }
 };
 

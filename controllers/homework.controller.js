@@ -18,7 +18,9 @@ exports.getAll = async (req, res) => {
           where: { teacherId: req.user.id },
           include: [
             { model: db.Subject, as: 'subject' },
-            { model: db.Class, as: 'class' },
+            { model: db.Class, as: 'class' ,
+                include: [{ model: db.Grade, as: 'grade' }],
+            },
           ],
         },
         { model: db.Term, as: 'term' },
@@ -138,6 +140,122 @@ exports.remove = async (req, res) => {
     res.json({ message: 'Homework deleted' });
   } catch (err) {
     res.status(500).json({ message: 'Failed to delete homework' });
+  }
+};
+
+exports.getSubmission = async (req, res) => {
+  try {
+    const hw = await db.Homework.findOne({
+      where: { id: req.params.hwId },
+      include: [{ model: db.ClassSubject, as: 'classSubject', where: { teacherId: req.user.id } }],
+    });
+    if (!hw) return res.status(404).json({ message: 'Homework not found' });
+
+    const submission = await db.HomeworkSubmission.findOne({
+      where: { id: req.params.subId, homeworkId: hw.id },
+      include: [
+        {
+          model: db.Student, as: 'pupil',
+          include: [{ model: db.User, as: 'user', attributes: ['id', 'firstName', 'lastName', 'email'] }],
+        },
+      ],
+    });
+    if (!submission) return res.status(404).json({ message: 'Submission not found' });
+    res.json(submission);
+  } catch (err) {
+    console.error('Get submission error:', err);
+    res.status(500).json({ message: 'Failed to fetch submission' });
+  }
+};
+
+exports.getSubmissions = async (req, res) => {
+  try {
+    const hw = await db.Homework.findOne({
+      where: { id: req.params.id },
+      include: [{ model: db.ClassSubject, as: 'classSubject', where: { teacherId: req.user.id } }],
+    });
+    if (!hw) return res.status(404).json({ message: 'Homework not found' });
+
+    const submissions = await db.HomeworkSubmission.findAll({
+      where: { homeworkId: hw.id },
+      include: [
+        {
+          model: db.Student, as: 'pupil',
+          include: [{ model: db.User, as: 'user', attributes: ['id', 'firstName', 'lastName', 'email'] }],
+        },
+      ],
+      order: [['submittedAt', 'DESC']],
+    });
+    res.json(submissions);
+  } catch (err) {
+    console.error('Get submissions error:', err);
+    res.status(500).json({ message: 'Failed to fetch submissions' });
+  }
+};
+
+exports.submitHomework = async (req, res) => {
+  try {
+    const hw = await db.Homework.findByPk(req.params.id);
+    if (!hw) return res.status(404).json({ message: 'Homework not found' });
+    if (!hw.isPublished) return res.status(403).json({ message: 'Homework is not available' });
+
+    const student = await db.Student.findOne({
+      include: [{ model: db.User, as: 'user', where: { id: req.user.id } }],
+    });
+    if (!student) return res.status(404).json({ message: 'Student record not found' });
+
+    const existing = await db.HomeworkSubmission.findOne({
+      where: { homeworkId: hw.id, pupilId: student.id },
+    });
+
+    const data = {
+      notes: req.body.notes || null,
+      fileUrl: req.file ? `/uploads/files/${req.file.filename}` : (existing?.fileUrl ?? null),
+      submittedAt: new Date(),
+    };
+
+    let submission;
+    if (existing) {
+      await existing.update(data);
+      submission = existing;
+    } else {
+      submission = await db.HomeworkSubmission.create({
+        homeworkId: hw.id,
+        pupilId: student.id,
+        ...data,
+      });
+    }
+
+    res.status(existing ? 200 : 201).json(submission);
+  } catch (err) {
+    console.error('Submit homework error:', err);
+    res.status(500).json({ message: 'Failed to submit homework' });
+  }
+};
+
+exports.deleteSubmission = async (req, res) => {
+  try {
+    const hw = await db.Homework.findOne({
+      where: { id: req.params.hwId },
+      include: [{ model: db.ClassSubject, as: 'classSubject', where: { teacherId: req.user.id } }],
+    });
+    if (!hw) return res.status(404).json({ message: 'Homework not found' });
+
+    const submission = await db.HomeworkSubmission.findOne({
+      where: { id: req.params.subId, homeworkId: hw.id },
+    });
+    if (!submission) return res.status(404).json({ message: 'Submission not found' });
+
+    if (submission.fileUrl) {
+      const filePath = path.join(__dirname, '../', submission.fileUrl);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
+
+    await submission.destroy();
+    res.json({ message: 'Submission deleted' });
+  } catch (err) {
+    console.error('Delete submission error:', err);
+    res.status(500).json({ message: 'Failed to delete submission' });
   }
 };
 

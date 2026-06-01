@@ -6,11 +6,15 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "seed:staff": "node seeders/staffSeeder.js",
+    "seed:all": "node seeders/masterSeeder.js",
     "seed:grade": "node seeders/gradeSeeder.js",
-    "seed:subject": "node seeders/subjectSeeder.js",
     "seed:year": "node seeders/currentYearSeeder.js",
-    "seed:classes": "node seeders/classesSeeder.js"
+    "seed:term": "node seeders/termSeeder.js",
+    "seed:staff": "node seeders/staffSeeder.js",
+    "seed:subject": "node seeders/subjectSeeder.js",
+    "seed:classes": "node seeders/classesSeeder.js",
+    "seed:students": "node seeders/studentSeeder.js",
+    "seed:fresh": "node seeders/freshSeeder.js"
   },
   "keywords": [],
   "author": "",

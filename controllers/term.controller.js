@@ -20,24 +20,35 @@ exports.getAllForSchool = async (req, res) => {
 };
 
 // GET terms by academic year
-// GET /api/academicYear/:yearId/terms
 exports.getAll = async (req, res) => {
   try {
     const terms = await db.Term.findAll({
-      where: { academicYearId: req.params.yearId },
       include: [{
         model: db.AcademicYear,
         as: 'academicYear',
+        required: true,
         where: { schoolId: req.user.schoolId },
       }],
-      order: [['termNumber', 'ASC']],
+      order: [
+        [{ model: db.AcademicYear, as: 'academicYear' }, 'year', 'DESC'],
+        ['termNumber', 'ASC'],
+      ],
     });
+
     res.json(terms);
   } catch (err) {
     console.error('Get terms error:', err);
     res.status(500).json({ message: 'Failed to fetch terms' });
   }
 };
+
+// Helper — you can also store isCurrent on Term itself instead
+function getCurrentTermNumber() {
+  const month = new Date().getMonth() + 1;
+  if (month >= 1 && month <= 4)  return 1;
+  if (month >= 5 && month <= 8)  return 2;
+  return 3;
+}
 
 // POST create term
 // POST /api/academicYear/:yearId/terms
@@ -105,7 +116,7 @@ exports.update = async (req, res) => {
 
 // DELETE term
 // DELETE /api/terms/:id
-exports.remove = async (req, res) => {
+exports.delete = async (req, res) => {
   try {
     const term = await db.Term.findByPk(req.params.id);
     if (!term) return res.status(404).json({ message: 'Term not found' });

@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const authController = require('../controllers/auth.controller');
+const authController   = require('../controllers/auth.controller');
+const schoolController = require('../controllers/school.controller');
+const staffController  = require('../controllers/staff.controller');
+const parentController = require('../controllers/parent.controller');
 const {
   validateRegisterSchool,
   validateLogin,
@@ -10,39 +13,47 @@ const {
   validateUpdateProfile,
   validateUpdateSchool,
 } = require('../validators/auth.validator');
-const { authenticate } = require('../middleware/auth.middleware');
-const { uploadLogo,uploadAvatar, handleUploadError } = require('../middleware/upload.middleware');
-
+const { authenticate, authorize } = require('../middleware/auth.middleware');
+const { uploadLogo, uploadAvatar, handleUploadError } = require('../middleware/upload.middleware');
 
 // ─── Public Routes ────────────────────────────────────────────
 router.post('/school/register', uploadLogo, handleUploadError, validateRegisterSchool, authController.registerSchool);
-router.post('/login', validateLogin, authController.login);
-router.post('/forgot-password', validateForgotPassword, authController.forgotPassword);
-router.post('/reset-password', validateResetPassword, authController.resetPassword);
-router.get('/verify-email', authController.verifyEmail); 
-router.post('/resend-verification', authController.resendVerification);
+router.post('/login',               validateLogin,         authController.login);
+router.post('/forgot-password',     validateForgotPassword, authController.forgotPassword);
+router.post('/reset-password',      validateResetPassword,  authController.resetPassword);
+router.post('/set-password',                                authController.setPassword);
+router.get('/verify-email',                                 authController.verifyEmail);
+router.post('/resend-verification',                         authController.resendVerification);
 
-// ─── Protected Routes ─────────────────────────────────────────
-router.get('/me', authenticate, authController.getMe);
-router.post('/logout', authenticate, authController.logout);
-router.put('/change-password', authenticate, validateChangePassword, authController.changePassword);
-router.put('/update-profile', authenticate, uploadLogo, handleUploadError, validateUpdateProfile, authController.updateProfile);
-router.get('/school/me', authenticate, authController.getMySchool);
-router.put('/school/me', authenticate, uploadLogo, handleUploadError, validateUpdateSchool, authController.updateMySchool);
-router.get('/users', authenticate, authController.getUsers);
+// ─── Auth / Profile ───────────────────────────────────────────
+router.get('/me',              authenticate, authController.getMe);
+router.put('/me',              authenticate, authController.updateMe);
+router.post('/logout',         authenticate, authController.logout);
+router.put('/change-password', authenticate, validateChangePassword,  authController.changePassword);
+router.put('/update-profile',  authenticate, uploadLogo, handleUploadError, validateUpdateProfile, authController.updateProfile);
+router.get('/users',           authenticate, authController.getUsers);
 
-router.get('/staff', authenticate, authController.getStaff);
-router.post('/staff', authenticate, authController.createStaff);
-router.put('/staff/:id', authenticate, authController.updateStaff);
-router.delete('/staff/:id', authenticate, authController.deleteStaff);
+// ─── School ───────────────────────────────────────────────────
+router.get('/school/me', authenticate, schoolController.getMySchool);
+router.put('/school/me', authenticate, uploadLogo, handleUploadError, validateUpdateSchool, schoolController.updateMySchool);
+router.put('/school/me/logo', authenticate, authorize('headmaster', 'admin'), uploadLogo, handleUploadError, schoolController.updateSchoolLogo);
+
+// ─── Staff ────────────────────────────────────────────────────
+router.get('/staff',        authenticate, authorize('headmaster', 'admin', 'teacher'), staffController.getStaff);
+router.post('/staff',       authenticate, authorize('headmaster', 'admin'),            staffController.createStaff);
+router.put('/staff/:id',    authenticate, authorize('headmaster', 'admin'),            staffController.updateStaff);
+router.delete('/staff/:id', authenticate, authorize('headmaster', 'admin'),            staffController.deleteStaff);
+
 // ─── Parents ──────────────────────────────────────────────────
-router.get('/parents', authenticate, authController.getParents);
-router.post('/parents', authenticate, authController.createParent);
-router.put('/parents/:id', authenticate, authController.updateParent);
-router.delete('/parents/:id', authenticate, authController.deleteParent);
+router.get('/parents',        authenticate, authorize('headmaster', 'admin', 'teacher'), parentController.getParents);
+router.post('/parents',       authenticate, authorize('headmaster', 'admin'),            parentController.createParent);
+router.put('/parents/:id',    authenticate, authorize('headmaster', 'admin'),            parentController.updateParent);
+router.delete('/parents/:id', authenticate, authorize('headmaster', 'admin'),            parentController.deleteParent);
 
-// ─── Avatar upload ────────────────────────────────────────────
-router.put('/staff/:id/avatar',    authenticate, uploadAvatar, handleUploadError, authController.updateAvatar);
-router.put('/students/:id/avatar', authenticate, uploadAvatar, handleUploadError, authController.updateAvatar);
-router.put('/parents/:id/avatar',  authenticate, uploadAvatar, handleUploadError, authController.updateAvatar);
+// ─── Avatar / Logo uploads ────────────────────────────────────
+router.put('/me/avatar',           authenticate,                              uploadAvatar, handleUploadError, authController.updateMyAvatar);
+router.put('/staff/:id/avatar',    authenticate, authorize('headmaster', 'admin'), uploadAvatar, handleUploadError, staffController.updateStaffAvatar);
+router.put('/students/:id/avatar', authenticate, authorize('headmaster', 'admin'), uploadAvatar, handleUploadError, staffController.updateStudentAvatar);
+router.put('/parents/:id/avatar',  authenticate, authorize('headmaster', 'admin'), uploadAvatar, handleUploadError, parentController.updateParentAvatar);
+
 module.exports = router;

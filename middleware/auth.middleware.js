@@ -12,18 +12,18 @@ exports.authenticate = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const user = await db.User.findByPk(decoded.id, {
-      include: [{ model: db.School, as: 'school' }],
-      attributes: { exclude: ['password', 'verificationToken', 'resetPasswordToken', 'resetPasswordExpires'] },
+      attributes: ['id', 'role', 'schoolId', 'isActive'],
     });
 
     if (!user) return res.status(401).json({ message: 'User not found' });
     if (!user.isActive) return res.status(403).json({ message: 'Account deactivated' });
 
-    req.user = user;
+    req.user = { id: user.id, role: user.role, schoolId: user.schoolId };
     next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') return res.status(401).json({ message: 'Token expired' });
     if (error.name === 'JsonWebTokenError') return res.status(401).json({ message: 'Invalid token' });
+    console.error('AUTH ERROR:', error);
     res.status(500).json({ message: 'Authentication failed' });
   }
 };

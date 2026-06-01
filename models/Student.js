@@ -1,3 +1,4 @@
+// models/Student.js
 const { DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => {
@@ -10,39 +11,42 @@ module.exports = (sequelize) => {
     userId: {
       type: DataTypes.UUID,
       allowNull: false,
-      references: { model: 'users', key: 'id' },
+      field: 'user_id',       
     },
     classId: {
       type: DataTypes.UUID,
       allowNull: true,
-      references: { model: 'classes', key: 'id' },
+      field: 'class_id',      
     },
     parentId: {
       type: DataTypes.UUID,
       allowNull: true,
-      references: { model: 'users', key: 'id' },
+      field: 'parent_id',      
     },
     regNumber: {
       type: DataTypes.STRING(50),
       allowNull: true,
-      unique: true,
+      field: 'reg_number',     
     },
     dateOfBirth: {
       type: DataTypes.DATEONLY,
       allowNull: true,
+      field: 'date_of_birth',  
     },
     gender: {
       type: DataTypes.ENUM('male', 'female'),
       allowNull: true,
     },
-     deletedAt: {
-      type: DataTypes.DATE
-  }
+    deletedAt: {
+      type: DataTypes.DATE,
+      field: 'deleted_at',
+    },
   }, {
     tableName: 'students',
-    timestamps: true,
-    underscored: true,
+    underscored: true,   
     paranoid: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
   });
 
   return Student;

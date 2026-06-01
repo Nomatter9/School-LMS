@@ -23,6 +23,11 @@ module.exports = (sequelize) => {
       type: DataTypes.UUID,
       allowNull: false,
     },
+    classId: {
+  type: DataTypes.UUID,
+  allowNull: true,
+  references: { model: 'classes', key: 'id' },
+},
      deletedAt: {
       type: DataTypes.DATE
   }

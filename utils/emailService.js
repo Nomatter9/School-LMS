@@ -47,6 +47,34 @@ exports.sendRegistrationEmail = async (email, token, password) => {
   });
 };
 
+// ─── Set Password Email (new users — no plain-text password) ──
+exports.sendSetPasswordEmail = async (email, firstName, token) => {
+  const url = `${process.env.FRONTEND_URL}/set-password?token=${token}`;
+
+  await transporter.sendMail({
+    from: `"${process.env.MAIL_FROM_NAME}" <${process.env.MAIL_FROM_ADDRESS}>`,
+    to: email,
+    subject: 'Activate Your School LMS Account',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 24px; background: #ffffff;">
+        <h2 style="color: #6366F1; margin-bottom: 8px;">Welcome, ${firstName}!</h2>
+        <p style="color: #555555; margin-bottom: 24px;">Your account has been created on School LMS. Click the button below to set your password and activate your account.</p>
+
+        <a href="${url}"
+           style="display: inline-block; padding: 14px 32px; background: #6366F1; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 15px; margin-bottom: 24px;">
+          Set Your Password →
+        </a>
+
+        <p style="color: #d97706; font-size: 13px; margin-bottom: 24px;">⚠ This link expires in 24 hours.</p>
+
+        <p style="color: #999999; font-size: 12px; margin-top: 24px; border-top: 1px solid #eeeeee; padding-top: 16px;">
+          If you did not expect this email, please ignore it.
+        </p>
+      </div>
+    `,
+  });
+};
+
 // ─── Password Reset Email ─────────────────────────────────────
 exports.sendPasswordResetEmail = async (email, token) => {
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;

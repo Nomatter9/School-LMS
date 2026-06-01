@@ -1,22 +1,32 @@
-// seeders/currentYearSeeder.js
 const db = require('../models');
 
-const setCurrentYear = async () => {
-  await db.sequelize.authenticate();
-  const school = await db.School.findOne();
-  
-  // Set all to false first
-  await db.AcademicYear.update({ isCurrent: false }, { where: { schoolId: school.id } });
-  
-  // Set 2026 as current (or whatever year you want)
+const setCurrentYear = async (schoolId) => {
+  if (!schoolId) {
+    await db.sequelize.authenticate();
+    const school = await db.School.findOne();
+    if (!school) {
+      console.error('❌ No school found. Register a school via the app first.');
+      process.exit(1);
+    }
+    schoolId = school.id;
+  }
+
+  await db.AcademicYear.update({ isCurrent: false }, { where: { schoolId } });
+
   const [year, created] = await db.AcademicYear.findOrCreate({
-    where: { schoolId: school.id, year: 2026 },
-    defaults: { schoolId: school.id, year: 2026, isCurrent: true },
+    where: { schoolId, year: 2026 },
+    defaults: { schoolId, year: 2026, isCurrent: true },
   });
-  
+
   if (!created) await year.update({ isCurrent: true });
-  
-  console.log('2026 set as current academic year');
+
+  console.log(`✅ 2026 set as current academic year (${created ? 'created' : 'updated'})`);
 };
 
-module.exports =setCurrentYear;
+if (require.main === module) {
+  setCurrentYear()
+    .then(() => process.exit(0))
+    .catch((err) => { console.error('❌ Year seeder failed:', err); process.exit(1); });
+}
+
+module.exports = setCurrentYear;

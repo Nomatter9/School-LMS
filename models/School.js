@@ -26,7 +26,7 @@ module.exports = (sequelize) => {
     email: {
       type: DataTypes.STRING(150),
       allowNull: false,
-      unique: true,
+      unique: 'schools_email_unique',
     },
     logoUrl: {
       type: DataTypes.TEXT,
