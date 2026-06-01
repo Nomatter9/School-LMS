@@ -8,6 +8,13 @@ const db = require('./models');
 // Load env
 dotenv.config();
 
+// ─── Startup env validation ───────────────────────────────────
+const PLACEHOLDER_SECRET = 'your-super-secret-jwt-key-change-this-in-production';
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === PLACEHOLDER_SECRET) {
+  console.error('❌ JWT_SECRET is not set or is using the default placeholder. Set a strong secret in .env before running.');
+  process.exit(1);
+}
+
 const app = express();
 
 // ─── Middleware ───────────────────────────────────────────────
@@ -17,7 +24,7 @@ app.use(
   })
 );
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true,
 }));
 app.use(express.json());
@@ -53,7 +60,6 @@ app.use('/api/homework',    homeworkRoutes);
 app.use('/api/attendance',  attendanceRoutes);
 app.use('/api/assessments', assessmentRoutes);
 app.use('/api/lessons',     lessonRoutes);
-app.use('/uploads', express.static('uploads'));
 // ─── Health check ─────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({ message: '✅ School LMS API is running' });

@@ -1,9 +1,28 @@
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
 const authController   = require('../controllers/auth.controller');
 const schoolController = require('../controllers/school.controller');
 const staffController  = require('../controllers/staff.controller');
 const parentController = require('../controllers/parent.controller');
+
+// ─── Rate Limiters ────────────────────────────────────────────
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { message: 'Too many login attempts. Please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const passwordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { message: 'Too many requests. Please try again in an hour.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 const {
   validateRegisterSchool,
   validateLogin,
@@ -18,12 +37,12 @@ const { uploadLogo, uploadAvatar, handleUploadError } = require('../middleware/u
 
 // ─── Public Routes ────────────────────────────────────────────
 router.post('/school/register', uploadLogo, handleUploadError, validateRegisterSchool, authController.registerSchool);
-router.post('/login',               validateLogin,         authController.login);
-router.post('/forgot-password',     validateForgotPassword, authController.forgotPassword);
-router.post('/reset-password',      validateResetPassword,  authController.resetPassword);
-router.post('/set-password',                                authController.setPassword);
-router.get('/verify-email',                                 authController.verifyEmail);
-router.post('/resend-verification',                         authController.resendVerification);
+router.post('/login',              loginLimiter,    validateLogin,          authController.login);
+router.post('/forgot-password',    passwordLimiter, validateForgotPassword, authController.forgotPassword);
+router.post('/reset-password',     passwordLimiter, validateResetPassword,  authController.resetPassword);
+router.post('/set-password',       passwordLimiter,                         authController.setPassword);
+router.get('/verify-email',                                                  authController.verifyEmail);
+router.post('/resend-verification', passwordLimiter,                        authController.resendVerification);
 
 // ─── Auth / Profile ───────────────────────────────────────────
 router.get('/me',              authenticate, authController.getMe);
