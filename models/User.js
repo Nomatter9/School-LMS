@@ -13,9 +13,9 @@ module.exports = (sequelize) => {
       references: { model: 'schools', key: 'id' },
     },
     avatarUrl: {
-  type: DataTypes.STRING,
-  allowNull: true,
-},
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     firstName: {
       type: DataTypes.STRING(100),
       allowNull: false,
@@ -34,17 +34,17 @@ module.exports = (sequelize) => {
       allowNull: false,
     },
     classId: {
-  type: DataTypes.UUID,
-  allowNull: true,
-},
-   role: {
-  type: DataTypes.STRING,
-  allowNull: false,
-  defaultValue: 'pupil',
-  validate: {
-    isIn: [['admin', 'headmaster', 'teacher', 'parent', 'pupil']]
-  }
-},
+      type: DataTypes.UUID,
+      allowNull: true,
+    },
+    role: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'pupil',
+      validate: {
+        isIn: [['admin', 'headmaster', 'teacher', 'parent', 'pupil']],
+      },
+    },
     phone: {
       type: DataTypes.STRING(20),
       allowNull: true,
@@ -70,9 +70,9 @@ module.exports = (sequelize) => {
       allowNull: true,
     },
     deletedAt: {
-      type: DataTypes.DATE
-  }
-},
+      type: DataTypes.DATE,
+    },
+  },
   {
    tableName: 'users',
     timestamps: true,

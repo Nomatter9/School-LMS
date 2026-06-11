@@ -30,6 +30,7 @@ exports.getAll = async (req, res) => {
     });
     res.json(homework);
   } catch (err) {
+    console.error('Get homework error:', err);
     res.status(500).json({ message: 'Failed to fetch homework' });
   }
 };
@@ -119,6 +120,7 @@ exports.update = async (req, res) => {
     await hw.update(updates);
     res.json(hw);
   } catch (err) {
+    console.error('Update homework error:', err);
     res.status(500).json({ message: 'Failed to update homework' });
   }
 };
@@ -195,14 +197,22 @@ exports.getSubmissions = async (req, res) => {
 
 exports.submitHomework = async (req, res) => {
   try {
-    const hw = await db.Homework.findByPk(req.params.id);
-    if (!hw) return res.status(404).json({ message: 'Homework not found' });
-    if (!hw.isPublished) return res.status(403).json({ message: 'Homework is not available' });
-
     const student = await db.Student.findOne({
       include: [{ model: db.User, as: 'user', where: { id: req.user.id } }],
     });
     if (!student) return res.status(404).json({ message: 'Student record not found' });
+
+    const classSubjects = await db.ClassSubject.findAll({
+      where: { classId: student.classId },
+      attributes: ['id'],
+    });
+    const csIds = classSubjects.map(cs => cs.id);
+
+    const hw = await db.Homework.findOne({
+      where: { id: req.params.id, classSubjectId: csIds },
+    });
+    if (!hw) return res.status(404).json({ message: 'Homework not found' });
+    if (!hw.isPublished) return res.status(403).json({ message: 'Homework is not available' });
 
     const existing = await db.HomeworkSubmission.findOne({
       where: { homeworkId: hw.id, pupilId: student.id },
@@ -264,8 +274,14 @@ exports.gradeSubmission = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(422).json({ message: 'Validation failed', errors: errors.array() });
 
+    const hw = await db.Homework.findOne({
+      where: { id: req.params.hwId },
+      include: [{ model: db.ClassSubject, as: 'classSubject', where: { teacherId: req.user.id } }],
+    });
+    if (!hw) return res.status(404).json({ message: 'Homework not found' });
+
     const submission = await db.HomeworkSubmission.findOne({
-      where: { id: req.params.subId, homeworkId: req.params.hwId },
+      where: { id: req.params.subId, homeworkId: hw.id },
     });
     if (!submission) return res.status(404).json({ message: 'Submission not found' });
 
@@ -273,6 +289,7 @@ exports.gradeSubmission = async (req, res) => {
     await submission.update({ marks, feedback, gradedAt: new Date() });
     res.json(submission);
   } catch (err) {
+    console.error('Grade submission error:', err);
     res.status(500).json({ message: 'Failed to grade submission' });
   }
 };

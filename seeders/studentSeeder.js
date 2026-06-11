@@ -1,6 +1,12 @@
 const bcrypt = require('bcryptjs');
 const db = require('../models');
 
+const STUDENTS = [
+  { firstName: 'Tafara',  lastName: 'Moyo',  gender: 'male',   regNumber: 'REG001' },
+  { firstName: 'Chiedza', lastName: 'Dube',  gender: 'female', regNumber: 'REG002' },
+  { firstName: 'Tinashe', lastName: 'Ncube', gender: 'male',   regNumber: 'REG003' },
+];
+
 const seedStudents = async (schoolId) => {
   if (!schoolId) {
     await db.sequelize.authenticate();
@@ -12,7 +18,13 @@ const seedStudents = async (schoolId) => {
     schoolId = school.id;
   }
 
+  const school = await db.School.findByPk(schoolId);
+  if (!school) throw new Error(`School not found: ${schoolId}`);
+
+  const domain = school.email.split('@')[1];
+
   const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash('student123', salt);
 
   const classes = await db.Class.findAll({ where: { schoolId } });
   if (classes.length === 0) {
@@ -22,23 +34,18 @@ const seedStudents = async (schoolId) => {
 
   const parent = await db.User.findOne({ where: { schoolId, role: 'parent' } });
 
-  const students = [
-    { firstName: 'Tafara',  lastName: 'Moyo',  email: `tafara.moyo@demo.thuto.lms`,    gender: 'male',   regNumber: 'REG001' },
-    { firstName: 'Chiedza', lastName: 'Dube',  email: `chiedza.dube@demo.thuto.lms`,   gender: 'female', regNumber: 'REG002' },
-    { firstName: 'Tinashe', lastName: 'Ncube', email: `tinashe.ncube@demo.thuto.lms`,  gender: 'male',   regNumber: 'REG003' },
-  ];
-
   let created = 0;
-  for (const s of students) {
-    const existing = await db.User.findOne({ where: { email: s.email } });
-    if (existing) { console.log(`⏭ Skipped (exists): ${s.email}`); continue; }
+  for (const s of STUDENTS) {
+    const email = `${s.firstName.toLowerCase()}.${s.lastName.toLowerCase()}@${domain}`;
 
-    const hashedPassword = await bcrypt.hash('student123', salt);
+    const existing = await db.User.findOne({ where: { email } });
+    if (existing) { console.log(`⏭ Skipped (exists): ${email}`); continue; }
+
     const user = await db.User.create({
       schoolId,
       firstName: s.firstName,
       lastName: s.lastName,
-      email: s.email,
+      email,
       password: hashedPassword,
       role: 'pupil',
       isVerified: true,
@@ -55,7 +62,7 @@ const seedStudents = async (schoolId) => {
       dateOfBirth: '2012-01-01',
     });
 
-    console.log(`✅ Created student: ${s.firstName} ${s.lastName}`);
+    console.log(`✅ Created student: ${s.firstName} ${s.lastName} — ${email}`);
     created++;
   }
 

@@ -21,7 +21,10 @@ exports.getParents = async (req, res) => {
       ],
       order: [['firstName', 'ASC']],
     });
-    res.json(parents.map(formatUser));
+    res.json(parents.map(p => ({
+      ...formatUser(p),
+      children: p.children || [],
+    })));
   } catch (err) {
     console.error('Get parents error:', err);
     res.status(500).json({ message: 'Failed to fetch parents' });

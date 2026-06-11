@@ -46,10 +46,10 @@ router.post('/resend-verification', passwordLimiter,                        auth
 
 // ─── Auth / Profile ───────────────────────────────────────────
 router.get('/me',              authenticate, authController.getMe);
-router.put('/me',              authenticate, authController.updateMe);
+router.put('/me',              authenticate, validateUpdateProfile, authController.updateMe);
 router.post('/logout',         authenticate, authController.logout);
 router.put('/change-password', authenticate, validateChangePassword,  authController.changePassword);
-router.put('/update-profile',  authenticate, uploadLogo, handleUploadError, validateUpdateProfile, authController.updateProfile);
+router.put('/update-profile',  authenticate, authorize('headmaster', 'admin'), uploadLogo, handleUploadError, validateUpdateProfile, authController.updateProfile);
 router.get('/users',           authenticate, authController.getUsers);
 
 // ─── School ───────────────────────────────────────────────────

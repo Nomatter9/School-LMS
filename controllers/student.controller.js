@@ -2,7 +2,7 @@ const db = require('../models');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { validationResult } = require('express-validator');
-const { sendRegistrationEmail } = require('../utils/emailService');
+const { sendSetPasswordEmail } = require('../utils/emailService');
 
 const User = db.User;
 const Student = db.Student;
@@ -69,14 +69,12 @@ exports.getAll = async (req, res) => {
 exports.getOne = async (req, res) => {
   try {
     const student = await Student.findOne({
+      where: { id: req.params.id },
       include: [
         {
           model: User,
           as: 'user',
-          where: { 
-            email: req.params.id, 
-            schoolId: req.user.schoolId 
-          },
+          where: { schoolId: req.user.schoolId },
           attributes: { exclude: ['password', 'verificationToken', 'resetPasswordToken', 'resetPasswordExpires'] },
         },
         { model: db.Class, as: 'class' },
@@ -110,40 +108,39 @@ exports.create = async (req, res) => {
     const existing = await User.findOne({ where: { email } });
     if (existing) return res.status(409).json({ message: 'Email already registered' });
 
-    // Auto generate password
-    const generatedPassword = crypto.randomBytes(6).toString('hex');
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(generatedPassword, salt);
-    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const setPasswordToken = crypto.randomBytes(32).toString('hex');
+    const placeholderPassword = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
 
-    // Create user with role pupil
-    const user = await User.create({
-      schoolId: req.user.schoolId,
-      firstName,
-      lastName,
-      email,
-      phone: phone || null,
-      password: hashedPassword,
-      role: 'pupil',
-      isVerified: false,
-      verificationToken,
+    let user, student;
+    await db.sequelize.transaction(async (t) => {
+      user = await User.create({
+        schoolId: req.user.schoolId,
+        firstName,
+        lastName,
+        email,
+        phone: phone || null,
+        password: placeholderPassword,
+        role: 'pupil',
+        isVerified: false,
+        resetPasswordToken: setPasswordToken,
+        resetPasswordExpires: new Date(Date.now() + 24 * 3600000),
+      }, { transaction: t });
+
+      student = await Student.create({
+        userId: user.id,
+        classId: classId || null,
+        parentId: parentId || null,
+        regNumber: regNumber || null,
+        dateOfBirth: dateOfBirth || null,
+        gender: gender || null,
+      }, { transaction: t });
     });
 
-    // Create student profile
-    const student = await Student.create({
-      userId: user.id,
-      classId: classId || null,
-      parentId: parentId || null,
-      regNumber: regNumber || null,
-      dateOfBirth: dateOfBirth || null,
-      gender: gender || null,
-    });
-
-    // Send registration email
+    // Send activation email (set-password link, no plain-text password)
     try {
-      await sendRegistrationEmail(email, verificationToken, generatedPassword);
+      await sendSetPasswordEmail(email, firstName, setPasswordToken);
     } catch (emailErr) {
-      console.error('Student registration email failed:', emailErr);
+      console.error('Student activation email failed:', emailErr);
     }
 
     // Fetch with associations
@@ -814,8 +811,10 @@ exports.remove = async (req, res) => {
     });
     if (!student) return res.status(404).json({ message: 'Student not found' });
 
-    await student.destroy();
-    await student.user.destroy();
+    await db.sequelize.transaction(async (t) => {
+      await student.destroy({ transaction: t });
+      await student.user.destroy({ transaction: t });
+    });
 
     res.json({ message: 'Student removed successfully' });
   } catch (err) {

@@ -10,8 +10,8 @@ dotenv.config();
 
 // ─── Startup env validation ───────────────────────────────────
 const PLACEHOLDER_SECRET = 'your-super-secret-jwt-key-change-this-in-production';
-if (!process.env.JWT_SECRET || process.env.JWT_SECRET === PLACEHOLDER_SECRET) {
-  console.error('❌ JWT_SECRET is not set or is using the default placeholder. Set a strong secret in .env before running.');
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === PLACEHOLDER_SECRET || process.env.JWT_SECRET.length < 32) {
+  console.error('❌ JWT_SECRET is missing, uses the default placeholder, or is too short. Set a strong secret (32+ chars) in .env.');
   process.exit(1);
 }
 

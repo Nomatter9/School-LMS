@@ -1,6 +1,10 @@
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const db = require('../models');
+const seedGrades      = require('./gradeSeeder');
+const seedSubjects    = require('./subjectSeeder');
+const seedCurrentYear = require('./currentYearSeeder');
+const seedTerms       = require('./termSeeder');
 
 const schools = [
   {
@@ -62,6 +66,11 @@ const register = async () => {
       isVerified: true,
       verificationToken: null,
     });
+
+    await seedGrades(school.id);
+    await seedSubjects(school.id);
+    await seedCurrentYear(school.id);
+    await seedTerms(school.id);
 
     console.log(`✅ Registered: ${s.schoolName}`);
     console.log(`   Email:    ${s.schoolEmail}`);
