@@ -79,11 +79,8 @@ app.use((err, req, res, next) => {
 // ─── Database + Server Start ──────────────────────────────────
 const PORT = process.env.PORT || 5000;
 
-const dbConnect = process.env.NODE_ENV === 'production'
-  ? db.sequelize.authenticate()
-  : db.sequelize.sync();
-
-dbConnect
+db.sequelize.authenticate()
+  .then(() => db.sequelize.sync())
   .then(() => {
     console.log('✅ Database connected');
     app.listen(PORT, () => {
