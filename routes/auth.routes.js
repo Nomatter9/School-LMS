@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
+const { validationResult } = require('express-validator');
 const authController   = require('../controllers/auth.controller');
 const schoolController = require('../controllers/school.controller');
 const staffController  = require('../controllers/staff.controller');
@@ -31,18 +32,35 @@ const {
   validateResetPassword,
   validateUpdateProfile,
   validateUpdateSchool,
+  validateSetPassword,
+  validateVerifyEmail,
+  validateResendVerification,
+  validateIdParam,
+  validateCreateStaff,
+  validateUpdateStaff,
+  validateCreateParent,
+  validateUpdateParent,
 } = require('../validators/auth.validator');
 const { authenticate, authorize } = require('../middleware/auth.middleware');
 const { uploadLogo, uploadAvatar, handleUploadError } = require('../middleware/upload.middleware');
+
+// ─── Validation error handler ──────────────────────────────────
+const handleValidationErrors = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ message: 'Validation failed', errors: errors.array() });
+  }
+  next();
+};
 
 // ─── Public Routes ────────────────────────────────────────────
 router.post('/school/register', uploadLogo, handleUploadError, validateRegisterSchool, authController.registerSchool);
 router.post('/login',              loginLimiter,    validateLogin,          authController.login);
 router.post('/forgot-password',    passwordLimiter, validateForgotPassword, authController.forgotPassword);
 router.post('/reset-password',     passwordLimiter, validateResetPassword,  authController.resetPassword);
-router.post('/set-password',       passwordLimiter,                         authController.setPassword);
-router.get('/verify-email',                                                  authController.verifyEmail);
-router.post('/resend-verification', passwordLimiter,                        authController.resendVerification);
+router.post('/set-password',       passwordLimiter, validateSetPassword, handleValidationErrors,         authController.setPassword);
+router.get('/verify-email',                         validateVerifyEmail, handleValidationErrors,          authController.verifyEmail);
+router.post('/resend-verification', passwordLimiter, validateResendVerification, handleValidationErrors,  authController.resendVerification);
 
 // ─── Auth / Profile ───────────────────────────────────────────
 router.get('/me',              authenticate, authController.getMe);
@@ -59,20 +77,20 @@ router.put('/school/me/logo', authenticate, authorize('headmaster', 'admin'), up
 
 // ─── Staff ────────────────────────────────────────────────────
 router.get('/staff',        authenticate, authorize('headmaster', 'admin', 'teacher'), staffController.getStaff);
-router.post('/staff',       authenticate, authorize('headmaster', 'admin'),            staffController.createStaff);
-router.put('/staff/:id',    authenticate, authorize('headmaster', 'admin'),            staffController.updateStaff);
-router.delete('/staff/:id', authenticate, authorize('headmaster', 'admin'),            staffController.deleteStaff);
+router.post('/staff',       authenticate, authorize('headmaster', 'admin'), validateCreateStaff, handleValidationErrors, staffController.createStaff);
+router.put('/staff/:id',    authenticate, authorize('headmaster', 'admin'), validateUpdateStaff, handleValidationErrors, staffController.updateStaff);
+router.delete('/staff/:id', authenticate, authorize('headmaster', 'admin'), validateIdParam,     handleValidationErrors, staffController.deleteStaff);
 
 // ─── Parents ──────────────────────────────────────────────────
 router.get('/parents',        authenticate, authorize('headmaster', 'admin', 'teacher'), parentController.getParents);
-router.post('/parents',       authenticate, authorize('headmaster', 'admin'),            parentController.createParent);
-router.put('/parents/:id',    authenticate, authorize('headmaster', 'admin'),            parentController.updateParent);
-router.delete('/parents/:id', authenticate, authorize('headmaster', 'admin'),            parentController.deleteParent);
+router.post('/parents',       authenticate, authorize('headmaster', 'admin'), validateCreateParent, handleValidationErrors, parentController.createParent);
+router.put('/parents/:id',    authenticate, authorize('headmaster', 'admin'), validateUpdateParent, handleValidationErrors, parentController.updateParent);
+router.delete('/parents/:id', authenticate, authorize('headmaster', 'admin'), validateIdParam,      handleValidationErrors, parentController.deleteParent);
 
 // ─── Avatar / Logo uploads ────────────────────────────────────
 router.put('/me/avatar',           authenticate,                              uploadAvatar, handleUploadError, authController.updateMyAvatar);
-router.put('/staff/:id/avatar',    authenticate, authorize('headmaster', 'admin'), uploadAvatar, handleUploadError, staffController.updateStaffAvatar);
-router.put('/students/:id/avatar', authenticate, authorize('headmaster', 'admin'), uploadAvatar, handleUploadError, staffController.updateStudentAvatar);
-router.put('/parents/:id/avatar',  authenticate, authorize('headmaster', 'admin'), uploadAvatar, handleUploadError, parentController.updateParentAvatar);
+router.put('/staff/:id/avatar',    authenticate, authorize('headmaster', 'admin'), validateIdParam, handleValidationErrors, uploadAvatar, handleUploadError, staffController.updateStaffAvatar);
+router.put('/students/:id/avatar', authenticate, authorize('headmaster', 'admin'), validateIdParam, handleValidationErrors, uploadAvatar, handleUploadError, staffController.updateStudentAvatar);
+router.put('/parents/:id/avatar',  authenticate, authorize('headmaster', 'admin'), validateIdParam, handleValidationErrors, uploadAvatar, handleUploadError, parentController.updateParentAvatar);
 
 module.exports = router;
